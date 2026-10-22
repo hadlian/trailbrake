@@ -1,0 +1,18 @@
+{
+  "name": "trailbrake-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local TrailBrake storefront prototype; no production integration",
+  "scripts": {
+    "dev": "node scripts/serve.cjs",
+    "check": "node --check prototype/app.js && node --check scripts/serve.cjs",
+    "test:ui": "node scripts/qa.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "playwright": "^1.64.1"
+  }
+}

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta
+      name="description"
+      content="A local TrailBrake storefront design prototype. Explore motorsport data systems, expert guidance and a demonstration cart."
+    />
+    <meta name="theme-color" content="#14264a" />
+    <title>TrailBrake — Find your next tenth.</title>
+    <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="preview-strip">
+      <span>TRAILBRAKE / DESIGN PREVIEW</span
+      ><span>Demo catalog. No orders or payments.</span>
+    </div>
+    <header>
+      <div class="header-main wrap">
+        <a href="#/" class="brand" aria-label="TrailBrake home"
+          ><svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true">
+            <circle
+              cx="20"
+              cy="20"
+              r="17"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+            />
+            <path
+              d="M5 15h10l5 6 5-6h10M20 21v16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="4"
+            />
+            <circle cx="20" cy="20" r="4" fill="currentColor" /></svg
+          ><span
+            >TrailBrake<span class="brand-sub"
+              >DATA. DIRECTION. CONFIDENCE.</span
+            ></span
+          ></a
+        >
+        <form class="search" role="search">
+          <label class="sr-only" for="site-search"
+            >Search products and part names</label
+          ><input
+            id="site-search"
+            name="q"
+            type="search"
+            placeholder="Search products, sensors, part names…"
+            autocomplete="off"
+          /><button aria-label="Search" type="submit">
+            <svg
+              viewBox="0 0 24 24"
+              width="21"
+              height="21"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              aria-hidden="true"
+            >
+              <circle cx="10" cy="10" r="6.5" />
+              <path d="m15 15 6 6" />
+            </svg>
+          </button>
+        </form>
+        <a class="expert-header" href="#/support"
+          ><span class="status-dot"></span
+          ><span
+            >Real people. Real race experience.<strong
+              >Talk to a data expert ↗</strong
+            ></span
+          ></a
+        >
+        <a class="cart-link" href="#/cart" aria-label="Demo cart"
+          ><svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 3h2l3 12h11l2-9H6M8 19h.01M18 19h.01"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <circle cx="9" cy="20" r="1" />
+            <circle cx="18" cy="20" r="1" /></svg
+          ><span class="cart-count">0</span></a
+        >
+        <button
+          class="menu-toggle"
+          aria-expanded="false"
+          aria-controls="main-nav"
+          aria-label="Open navigation"
+        >
+          ☰
+        </button>
+      </div>
+      <div class="nav-line">
+        <nav id="main-nav" class="wrap nav" aria-label="Main navigation">
+          <a href="#/shop">Shop all products <span>↗</span></a
+          ><a href="#/shop?category=Dashes%20%26%20loggers">Dashes & loggers</a
+          ><a href="#/shop?category=Sensors%20%26%20wiring">Sensors & wiring</a
+          ><a href="#/builder">Build your system</a
+          ><a href="#/learn">Learning center</a
+          ><a href="#/support" class="nav-last"
+            >Expert support <span>↗</span></a
+          >
+        </nav>
+      </div>
+    </header>
+    <main id="main" tabindex="-1"></main>
+    <footer>
+      <div class="wrap footer-grid">
+        <div>
+          <a href="#/" class="brand"
+            >TrailBrake<span class="brand-period">.</span></a
+          >
+          <p>Better data. Better decisions.<br />More confidence on track.</p>
+          <span class="footer-small">Manchester, New Hampshire</span>
+        </div>
+        <div>
+          <h2>Find your system</h2>
+          <a href="#/shop?use=Karting">Karting</a
+          ><a href="#/shop?use=Track%20days">Track days</a
+          ><a href="#/shop?use=Club%20racing">Club racing</a
+          ><a href="#/builder">System planner</a>
+        </div>
+        <div>
+          <h2>Learn & connect</h2>
+          <a href="#/learn">Learning center</a
+          ><a href="#/support">Talk to an expert</a
+          ><a
+            href="https://www.youtube.com/@TrailBrakeData"
+            target="_blank"
+            rel="noreferrer"
+            >TrailBrake on YouTube ↗</a
+          >
+        </div>
+        <div class="footer-note">
+          <span class="eyebrow">A STORE BUILT AROUND SUPPORT</span>
+          <p>
+            From your first logger to a complete race-car system. Start with the
+            right questions.
+          </p>
+          <a href="#/support" class="text-link"
+            >Let’s talk data <span>↗</span></a
+          >
+        </div>
+      </div>
+      <div class="wrap footer-bottom">
+        <span>© 2026 TrailBrake · Independent design prototype</span
+        ><span
+          >Local demo • Prices are illustrative snapshots • No live
+          inventory</span
+        >
+      </div>
+    </footer>
+    <div id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
