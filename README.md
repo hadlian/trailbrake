@@ -69,3 +69,7 @@ Learning-center text is introductory prototype editorial copy, not a claim to re
 ## Audit files
 
 The original `MODERNIZATION_PLAN.md` accompanies the prototype. Its detailed raw evidence and screenshots remain local under `audit/` and are not needed to run this application. Some evidence links in that report therefore require the original audit workspace. Generated output, raw audit captures, local test artifacts, dependencies and secrets are excluded from commits.
+
+### Structured coverage planning
+
+The builder records monitored wheel count (or unknown), existing measurement sensors, reported ECU channels, and available existing tire-sensor count. Tire-sensor purchase allowances subtract reported existing sensors from monitored wheels, clamped at zero and explicitly conditional on reuse verification. Receiver quantity is separate. ECU coverage only reduces allowances when an ECU is reported present; otherwise the draft flags the contradiction. Possible duplicate sensors and their dedicated cables remain visible as potentially redundant, with compatibility unverified. The download includes the same inputs, quantities and reasons.

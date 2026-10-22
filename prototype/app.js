@@ -265,6 +265,10 @@ let builder = {
   ecu: "",
   existing: "",
   sensors: [],
+  wheelCount: "",
+  existingSensors: [],
+  ecuChannels: [],
+  existingTireCount: "",
   notes: "",
 };
 function saveCart() {
@@ -484,25 +488,79 @@ function planRows() {
   for (const id of builder.sensors) {
     const s = sensorChoices.find((s) => s.id === id);
     if (!s) continue;
+    const installed = builder.existingSensors.includes(id);
+    const ecuReported = builder.ecuChannels.includes(id);
+    const ecuActive = ecuReported && builder.ecuStatus === "ECU present";
+    const possible = installed || ecuActive;
+    const reasons = [
+      installed ? "Customer reports an existing sensor." : "",
+      ecuActive
+        ? "Customer reports an available ECU channel; verify that it can be delivered to this logger."
+        : "",
+      ecuReported && !ecuActive
+        ? "An ECU channel was reported but no ECU connection is confirmed; it has not reduced this allowance."
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    let qty =
+      id === "position"
+        ? "TBD"
+        : possible
+          ? "0–1 new; pending coverage review"
+          : "1 planning allowance";
+    if (id === "tires") {
+      const wheels = Number(builder.wheelCount);
+      const known = installed && builder.existingTireCount !== "";
+      const existingCount = known ? Number(builder.existingTireCount) : 0;
+      qty = !wheels
+        ? "TBD — wheel count unknown"
+        : ecuActive
+          ? `${wheels} wheel positions; new sensors pending ECU coverage review`
+          : installed && !known
+            ? `${wheels} wheel positions; existing sensor count unknown`
+            : `${Math.max(0, wheels - existingCount)} provisional new / ${wheels} wheel positions`;
+    }
     rows.push({
-      name: s.part,
-      qty: id === "tires" || id === "position" ? "TBD" : "1 planning allowance",
-      kind: "UNVERIFIED",
+      name: id === "tires" ? "TPMS wheel sensors" : s.part,
+      qty,
+      kind: possible ? "POTENTIALLY REDUNDANT" : "UNVERIFIED",
       check:
+        reasons +
+        " " +
         s.check +
-        ". Check whether an existing sensor or verified ECU channel already supplies this measurement before buying.",
+        ". " +
+        (id === "tires"
+          ? "One sensor per monitored wheel is a planning assumption. Existing counts reduce the provisional allowance only; verify pairing, condition and coverage. " +
+            (installed &&
+            Number(builder.existingTireCount) > Number(builder.wheelCount) &&
+            builder.wheelCount
+              ? "Reported existing sensors exceed the wheel count; check spares and installed quantities. "
+              : "")
+          : "Verify existing measurement coverage, quality and logger access before deciding whether a new sensor is needed."),
     });
+    if (id === "tires")
+      rows.push({
+        name: "TPMS receiver / interface",
+        qty: "TBD — inspect existing receiver first",
+        kind: possible ? "POTENTIALLY REDUNDANT" : "UNVERIFIED",
+        check:
+          "Receiver quantity is not the wheel count. Verify existing receiver, supported wheel count, pairing, protocol and logger integration; ECU tire channels may remove the need for a separate receiver.",
+      });
     rows.push({
       name:
         id === "tires"
           ? "TPMS receiver power / data cable"
           : `${s.name} extension / patch cable`,
-      qty: "TBD",
-      kind: "UNVERIFIED",
+      qty: possible ? "Conditional — coverage / reuse review" : "TBD",
+      kind: possible ? "POTENTIALLY REDUNDANT" : "UNVERIFIED",
       check:
-        id === "tires"
+        (possible
+          ? "A new dedicated cable may not be needed if the measurement is reusable or supplied through the ECU; inspect existing wiring first. "
+          : "") +
+        (id === "tires"
           ? "Confirm receiver connector, power, protocol and logger connection."
-          : "Confirm both connector ends, pinout, signal type, cable length and routing. CHT/EGT extensions must match the probe and input; do not substitute a generic 719 cable.",
+          : "Confirm both connector ends, pinout, signal type, cable length and routing. Thermocouple extensions must match the probe/input."),
     });
   }
   rows.push({
@@ -517,8 +575,19 @@ function planRows() {
 function builderField(key, label, placeholder) {
   return `<label class="builder-field">${label}<input data-builder-field="${key}" maxlength="160" value="${esc(builder[key])}" placeholder="${placeholder}"></label>`;
 }
+function measurementNames(ids) {
+  return (
+    ids
+      .map((id) => sensorChoices.find((s) => s.id === id)?.name)
+      .filter(Boolean)
+      .join(", ") || "None reported"
+  );
+}
+function coverageFields() {
+  return `<fieldset class="sensor-fieldset"><legend>Existing sensors and available ECU channels</legend><p class="results-count">Report what you have. These are unverified coverage claims, not confirmed logger inputs. Leaving a box clear means “not reported,” not proven absent.</p><div class="coverage-grid">${sensorChoices.map((s) => `<div class="coverage-row"><strong>${s.name}</strong><label><input type="checkbox" data-coverage="existingSensors" data-measurement="${s.id}" ${builder.existingSensors.includes(s.id) ? "checked" : ""}> Existing sensor: ${s.name}</label><label><input type="checkbox" data-coverage="ecuChannels" data-measurement="${s.id}" ${builder.ecuChannels.includes(s.id) ? "checked" : ""}> ECU channel: ${s.name}</label></div>`).join("")}</div><label class="builder-field">Existing tire sensors available for reuse<select data-builder-field="existingTireCount"><option value="">Count unknown</option>${Array.from({ length: 13 }, (_, n) => `<option value="${n}" ${builder.existingTireCount === String(n) ? "selected" : ""}>${n}</option>`).join("")}</select></label><p class="results-count">The tire count is used only when “Existing sensor: Tire pressure / temperature” is checked. Spare sensors and receiver compatibility still need review.</p></fieldset>`;
+}
 function builderSummary() {
-  return `${builder.use} · ${builder.vehicle || "Vehicle details not provided"} · ${builder.engine || "Engine details not provided"}\nLogger plan: ${builder.hardware}; ${builder.logger || "model not provided"}\nECU: ${builder.ecuStatus}; ${builder.ecu || "model not provided"}\nExisting harness / sensors: ${builder.existing || "not provided"}\nDesired measurements: ${
+  return `${builder.use} · ${builder.vehicle || "Vehicle details not provided"} · ${builder.engine || "Engine details not provided"}\nWheels to monitor: ${builder.wheelCount || "Unknown"}\nExisting sensors: ${measurementNames(builder.existingSensors)}\nReported ECU channels: ${measurementNames(builder.ecuChannels)}\nExisting tire sensor count: ${builder.existingSensors.includes("tires") ? builder.existingTireCount || "Unknown" : "Not applied — existing tire sensor not selected"}\nLogger plan: ${builder.hardware}; ${builder.logger || "model not provided"}\nECU: ${builder.ecuStatus}; ${builder.ecu || "model not provided"}\nExisting harness / sensors: ${builder.existing || "not provided"}\nDesired measurements: ${
     builder.sensors
       .map((id) => sensorChoices.find((s) => s.id === id)?.name)
       .filter(Boolean)
@@ -528,14 +597,22 @@ function builderSummary() {
 function builderPage() {
   let content = "";
   if (builder.step === 1)
-    content = `<h2>Tell us about your car or kart.</h2><p class="detail-subtitle">Choose your driving, then add the vehicle and engine details you know. Unknown details remain visible in your draft.</p><div class="builder-options">${["Karting", "Track days", "Club racing"].map((u) => `<button class="choice ${builder.use === u ? "selected" : ""}" data-use="${u}" aria-pressed="${builder.use === u}"><strong>${u}</strong><small>${u === "Karting" ? "Kart-focused data planning." : "Plan data around your car and driving goals."}</small></button>`).join("")}</div><div class="builder-fields">${builderField("vehicle", "Car or kart — make, model, year / chassis", "e.g. 2018 Mazda MX-5 or kart chassis and year")}${builderField("engine", "Engine / class / modifications", "e.g. engine model, racing class, ECU changes")}</div>`;
+    content = `<h2>Tell us about your car or kart.</h2><p class="detail-subtitle">Choose your driving, then add the vehicle and engine details you know. Unknown details remain visible in your draft.</p><div class="builder-options">${["Karting", "Track days", "Club racing"].map((u) => `<button class="choice ${builder.use === u ? "selected" : ""}" data-use="${u}" aria-pressed="${builder.use === u}"><strong>${u}</strong><small>${u === "Karting" ? "Kart-focused data planning." : "Plan data around your car and driving goals."}</small></button>`).join("")}</div><div class="builder-fields">${builderField("vehicle", "Car or kart — make, model, year / chassis", "e.g. 2018 Mazda MX-5 or kart chassis and year")}${builderField("engine", "Engine / class / modifications", "e.g. engine model, racing class, ECU changes")}<label class="builder-field">Wheels to monitor<select data-builder-field="wheelCount"><option value="">Not sure yet</option>${Array.from(
+      { length: 12 },
+      (_, i) => i + 1,
+    )
+      .map(
+        (n) =>
+          `<option value="${n}" ${builder.wheelCount === String(n) ? "selected" : ""}>${n} wheels</option>`,
+      )
+      .join("")}</select></label></div>`;
   if (builder.step === 2)
-    content = `<h2>What hardware is already there?</h2><p class="detail-subtitle">Record exact model numbers where possible. We won’t treat an existing connection as verified compatibility.</p><div class="builder-options hardware-options">${["Starting fresh", "Keep my existing logger", "Not sure yet"].map((u) => `<button class="choice ${builder.hardware === u ? "selected" : ""}" data-hardware="${u}" aria-pressed="${builder.hardware === u}"><strong>${u}</strong><small>${u === "Keep my existing logger" ? "Plan around your hardware; do not suggest a replacement." : "Use the draft to identify what needs confirming."}</small></button>`).join("")}</div><div class="builder-fields">${builderField("logger", "Existing logger / dash and revision", "e.g. AiM MXS 1.3; firmware if known")}<label class="builder-field">ECU connection plan<select data-builder-field="ecuStatus">${["Not sure", "ECU present", "No ECU connection planned"].map((x) => `<option ${builder.ecuStatus === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>${builderField("ecu", "ECU make, model and firmware", "e.g. factory ECU or aftermarket model")}${builderField("existing", "Existing harnesses and sensors", "Part numbers, available ports, installed sensors")}</div>`;
+    content = `<h2>What hardware is already there?</h2><p class="detail-subtitle">Record exact model numbers where possible. We won’t treat an existing connection as verified compatibility.</p><div class="builder-options hardware-options">${["Starting fresh", "Keep my existing logger", "Not sure yet"].map((u) => `<button class="choice ${builder.hardware === u ? "selected" : ""}" data-hardware="${u}" aria-pressed="${builder.hardware === u}"><strong>${u}</strong><small>${u === "Keep my existing logger" ? "Plan around your hardware; do not suggest a replacement." : "Use the draft to identify what needs confirming."}</small></button>`).join("")}</div><div class="builder-fields">${builderField("logger", "Existing logger / dash and revision", "e.g. AiM MXS 1.3; firmware if known")}<label class="builder-field">ECU connection plan<select data-builder-field="ecuStatus">${["Not sure", "ECU present", "No ECU connection planned"].map((x) => `<option ${builder.ecuStatus === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>${builderField("ecu", "ECU make, model and firmware", "e.g. factory ECU or aftermarket model")}${builderField("existing", "Existing harnesses and sensors", "Part numbers, available ports, installed sensors")}</div>${coverageFields()}`;
   if (builder.step === 3)
     content = `<h2>What do you want to measure?</h2><p class="detail-subtitle">Choose your goals. Each adds a sensor requirement and its connection to the draft—not a verified SKU.</p><fieldset class="sensor-fieldset"><legend class="sr-only">Desired sensor measurements</legend><div class="sensor-grid">${sensorChoices.map((s) => `<label class="sensor-choice"><input type="checkbox" data-sensor="${s.id}" ${builder.sensors.includes(s.id) ? "checked" : ""}><span><strong>${s.name}</strong><small>${s.check}</small></span></label>`).join("")}</div></fieldset>${builderField("notes", "Installation notes / channels / cable lengths", "e.g. four wheels, two suspension channels, approximate cable runs")}<p class="results-count">You can continue with no sensors selected if you want help deciding.</p>`;
   if (builder.step === 4) {
     const rows = planRows();
-    content = `<h2>Your draft parts list.</h2><p class="detail-subtitle">A planning brief for an expert—not a fitment approval, wiring instruction or complete quote.</p><div class="plan-summary"><span class="eyebrow">YOUR INPUTS</span><p>${esc(builderSummary()).replace(/\n/g, "<br>")}</p><button class="text-link edit-plan" data-edit-step="1">Edit vehicle</button><button class="text-link edit-plan" data-edit-step="2">Edit hardware</button><button class="text-link edit-plan" data-edit-step="3">Edit sensors</button></div><div class="note"><strong>Compatibility is unverified for every line.</strong> No harness or cable SKU is selected until connectors, pinouts, signal types and lengths are reviewed. Quantities are planning allowances; sensor choices do not prove available channels.</div><div class="draft-parts">${rows.map((r) => `<article class="draft-part"><div class="draft-part-head"><h3>${esc(r.name)}</h3><span class="status-pill">UNVERIFIED</span></div><p class="part-meta">${esc(r.kind)} · Quantity: ${esc(r.qty)} · ${r.product ? "Catalog snapshot: " + money(r.product.price) + "; final configuration unpriced" : "Price: not quoted"}</p><p>${esc(r.check)}</p>${r.product ? `<a class="text-link" href="#/product/${r.product.id}">Explore candidate only ↗</a>` : ""}</article>`).join("")}</div><div class="note"><strong>System total: not quoted.</strong> Harnesses, cables, sensor variants, expansion and installation have not been priced. Nothing from this draft is automatically added to the cart.</div><div class="buttons"><button class="btn btn-red" id="download-builder">Download draft parts list ↓</button><a class="btn btn-outline" href="#/support">Request an expert review ↗</a></div>`;
+    content = `<h2>Your draft parts list.</h2><p class="detail-subtitle">A planning brief for an expert—not a fitment approval, wiring instruction or complete quote.</p><div class="plan-summary"><span class="eyebrow">YOUR INPUTS</span><p>${esc(builderSummary()).replace(/\n/g, "<br>")}</p><button class="text-link edit-plan" data-edit-step="1">Edit vehicle</button><button class="text-link edit-plan" data-edit-step="2">Edit hardware</button><button class="text-link edit-plan" data-edit-step="3">Edit sensors</button></div><div class="note"><strong>Compatibility is unverified for every line.</strong> No harness or cable SKU is selected until connectors, pinouts, signal types and lengths are reviewed. Quantities are provisional planning allowances. “Potentially redundant” means reported existing/ECU coverage needs review; it does not confirm compatibility or remove the measurement from your plan.</div><div class="draft-parts">${rows.map((r) => `<article class="draft-part"><div class="draft-part-head"><h3>${esc(r.name)}</h3><span class="status-pill">UNVERIFIED</span></div><p class="part-meta">${esc(r.kind)} · Quantity: ${esc(r.qty)} · ${r.product ? "Catalog snapshot: " + money(r.product.price) + "; final configuration unpriced" : "Price: not quoted"}</p><p>${esc(r.check)}</p>${r.product ? `<a class="text-link" href="#/product/${r.product.id}">Explore candidate only ↗</a>` : ""}</article>`).join("")}</div><div class="note"><strong>System total: not quoted.</strong> Harnesses, cables, sensor variants, expansion and installation have not been priced. Nothing from this draft is automatically added to the cart.</div><div class="buttons"><button class="btn btn-red" id="download-builder">Download draft parts list ↓</button><a class="btn btn-outline" href="#/support">Request an expert review ↗</a></div>`;
   }
   return `${bread("Build your system")}<section class="wrap page-heading"><span class="eyebrow">FROM A GOAL TO A PLAN</span><h1>Let’s connect the dots.</h1><p>Your vehicle, your hardware, your measurements—one draft to review together.</p></section><section class="builder"><div class="progress" aria-label="Planner progress">${["Vehicle", "Hardware", "Sensors", "Draft parts"].map((s, i) => `<div class="step ${builder.step === i + 1 ? "active" : ""}" ${builder.step === i + 1 ? 'aria-current="step"' : ""}>0${i + 1} / ${s}</div>`).join("")}</div>${content}<div class="builder-actions"><button class="btn btn-outline" id="builder-back">${builder.step === 1 ? "Back to shop" : "← Previous step"}</button>${builder.step < 4 ? `<button class="btn" id="builder-next" ${(builder.step === 1 && !builder.use) || (builder.step === 2 && !builder.hardware) ? "disabled" : ""}>${builder.step === 3 ? "Show draft parts list" : "Next step"} →</button>` : ""}</div></section>`;
 }
@@ -708,6 +785,15 @@ function bindPage() {
   document.querySelectorAll("[data-builder-field]").forEach((input) => {
     input.oninput = () => {
       builder[input.dataset.builderField] = input.value.slice(0, 160);
+    };
+  });
+  document.querySelectorAll("[data-coverage]").forEach((input) => {
+    input.onchange = () => {
+      const key = input.dataset.coverage,
+        id = input.dataset.measurement;
+      builder[key] = input.checked
+        ? [...new Set([...builder[key], id])]
+        : builder[key].filter((x) => x !== id);
     };
   });
   document.querySelectorAll("[data-sensor]").forEach((input) => {

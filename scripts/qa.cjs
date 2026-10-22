@@ -103,13 +103,25 @@ const { default: AxeBuilder } = require("@axe-core/playwright");
   if (await page.locator(".cart-item").count()) throw Error("Remove failed");
   await page.goto("http://127.0.0.1:4173/#/builder");
   await page.getByRole("button", { name: /Track days/ }).click();
+  await page.getByLabel("Wheels to monitor").selectOption("4");
   await page.locator("#builder-next").click();
   await page.getByRole("button", { name: /Starting fresh/ }).click();
   await page.getByLabel("ECU connection plan").selectOption("ECU present");
   await page.getByLabel("ECU make, model and firmware").fill("Example ECU");
+  await page
+    .locator('[data-coverage="existingSensors"][data-measurement="tires"]')
+    .check();
+  await page
+    .locator('[data-coverage="ecuChannels"][data-measurement="coolant"]')
+    .check();
+  await page
+    .getByLabel("Existing tire sensors available for reuse")
+    .selectOption("2");
   await page.locator("#builder-next").click();
   await page.locator('[data-sensor="oil"]').check();
   await page.locator('[data-sensor="egt"]').check();
+  await page.locator('[data-sensor="tires"]').check();
+  await page.locator('[data-sensor="coolant"]').check();
   await page.locator("#builder-next").click();
   if (!(await page.locator(".builder").innerText()).includes("Solo 2 DL"))
     throw Error("Builder failed");
@@ -125,6 +137,28 @@ const { default: AxeBuilder } = require("@axe-core/playwright");
   ])
     if (!plan.includes(expected))
       throw Error("Missing draft requirement: " + expected);
+  const tireRow = page
+    .locator(".draft-part")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "TPMS wheel sensors",
+        exact: true,
+      }),
+    });
+  const coolantRow = page
+    .locator(".draft-part")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "Coolant-temperature sensor",
+        exact: true,
+      }),
+    });
+  if (!(await tireRow.innerText()).includes("2 provisional new / 4"))
+    throw Error("Tire quantity subtraction failed");
+  if (!(await coolantRow.innerText()).includes("POTENTIALLY REDUNDANT"))
+    throw Error("ECU coverage not flagged");
+  if (!(await coolantRow.innerText()).includes("UNVERIFIED"))
+    throw Error("Lost compatibility warning");
   const planDownloadPromise = page.waitForEvent("download");
   await page.locator("#download-builder").click();
   const planDownload = await planDownloadPromise;
@@ -178,6 +212,25 @@ const { default: AxeBuilder } = require("@axe-core/playwright");
     throw Error("Input escaping failed");
   if (await page.locator(".plan-summary img").count())
     throw Error("Unsafe HTML input");
+  if (!(await coolantRow.innerText()).includes("1 planning allowance"))
+    throw Error("Disconnected ECU must not reduce quantity");
+  await page.getByRole("button", { name: "Edit vehicle", exact: true }).click();
+  await page.getByLabel("Wheels to monitor").selectOption("");
+  await page.locator("#builder-next").click();
+  await page.locator("#builder-next").click();
+  await page.locator("#builder-next").click();
+  if (!(await tireRow.innerText()).includes("wheel count unknown"))
+    throw Error("Unknown wheel count guessed");
+  await page.getByRole("button", { name: "Edit vehicle", exact: true }).click();
+  await page.getByLabel("Wheels to monitor").selectOption("1");
+  await page.locator("#builder-next").click();
+  await page.locator("#builder-next").click();
+  await page.locator("#builder-next").click();
+  if (
+    !(await tireRow.innerText()).includes("0 provisional new / 1") ||
+    !(await tireRow.innerText()).includes("exceed the wheel count")
+  )
+    throw Error("Excess sensors not handled");
   await page.screenshot({
     path: "prototype-qa/builder-result.png",
     fullPage: true,

@@ -1960,3 +1960,41 @@ main:focus {
     font-size: 9px;
   }
 }
+.coverage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.coverage-row {
+  background: white;
+  border: 1px solid #bdc7d2;
+  padding: 16px;
+}
+.coverage-row strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.coverage-row label {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  font-size: 12px;
+  padding: 9px 0;
+  cursor: pointer;
+}
+.coverage-row input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #254b9d;
+}
+.sensor-fieldset legend {
+  font-size: 18px;
+  font-weight: 700;
+}
+@media (max-width: 600px) {
+  .coverage-grid {
+    grid-template-columns: 1fr;
+  }
+}
