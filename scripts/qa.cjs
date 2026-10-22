@@ -105,9 +105,79 @@ const { default: AxeBuilder } = require("@axe-core/playwright");
   await page.getByRole("button", { name: /Track days/ }).click();
   await page.locator("#builder-next").click();
   await page.getByRole("button", { name: /Starting fresh/ }).click();
+  await page.getByLabel("ECU connection plan").selectOption("ECU present");
+  await page.getByLabel("ECU make, model and firmware").fill("Example ECU");
+  await page.locator("#builder-next").click();
+  await page.locator('[data-sensor="oil"]').check();
+  await page.locator('[data-sensor="egt"]').check();
   await page.locator("#builder-next").click();
   if (!(await page.locator(".builder").innerText()).includes("Solo 2 DL"))
     throw Error("Builder failed");
+  const plan = await page.locator(".builder").innerText();
+  for (const expected of [
+    "Oil-pressure sensor",
+    "EGT probe",
+    "Main harness",
+    "ECU-to-logger",
+    "Oil pressure extension / patch cable",
+    "UNVERIFIED",
+    "System total: not quoted",
+  ])
+    if (!plan.includes(expected))
+      throw Error("Missing draft requirement: " + expected);
+  const planDownloadPromise = page.waitForEvent("download");
+  await page.locator("#download-builder").click();
+  const planDownload = await planDownloadPromise;
+  await planDownload.saveAs("prototype-qa/system-plan.txt");
+  if (
+    !fs
+      .readFileSync("prototype-qa/system-plan.txt", "utf8")
+      .includes("Example ECU")
+  )
+    throw Error("Export omitted ECU");
+  for (const width of [375, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const axe = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+      .analyze();
+    results.push({
+      width,
+      route: "/builder/result",
+      overflow: await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth,
+      ),
+      axe: axe.violations.map((v) => ({
+        id: v.id,
+        nodes: v.nodes.map((n) => n.target),
+      })),
+    });
+  }
+  await page
+    .getByRole("button", { name: "Edit hardware", exact: true })
+    .click();
+  await page.getByRole("button", { name: /Keep my existing logger/ }).click();
+  await page
+    .getByLabel("Existing logger / dash and revision")
+    .fill("<img src=x onerror=alert(1)>");
+  await page
+    .getByLabel("ECU connection plan")
+    .selectOption("No ECU connection planned");
+  await page.locator("#builder-next").click();
+  if (!(await page.locator('[data-sensor="oil"]').isChecked()))
+    throw Error("Sensor selection lost");
+  await page.locator('[data-sensor="egt"]').uncheck();
+  await page.locator("#builder-next").click();
+  const existingPlan = await page.locator(".builder").innerText();
+  if (
+    existingPlan.includes("Solo 2 DL") ||
+    existingPlan.includes("ECU-to-logger") ||
+    existingPlan.includes("EGT probe")
+  )
+    throw Error("Stale or redundant recommendation");
+  if (!existingPlan.includes("<img src=x onerror=alert(1)>"))
+    throw Error("Input escaping failed");
+  if (await page.locator(".plan-summary img").count())
+    throw Error("Unsafe HTML input");
   await page.screenshot({
     path: "prototype-qa/builder-result.png",
     fullPage: true,

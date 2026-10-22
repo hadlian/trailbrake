@@ -18,7 +18,7 @@ Open **http://127.0.0.1:4173**. The server binds only to loopback. To change the
 - Six-product demo catalog with category/use filters, price sorting and keyword search.
 - Product detail pages with required configuration selection, quantity and compatibility notes.
 - Browser-local cart with quantity controls, removal, persistence and text parts-list download.
-- Three-step system planner with explicit unresolved compatibility questions and a downloadable checklist.
+- Four-step system planner capturing vehicle/engine, existing ECU/logger, and desired measurements; produces a downloadable draft with sensor, harness, patch-cable and conditional expansion requirements. All compatibility is flagged unverified, and existing loggers are retained when requested.
 - Learning center with three introductory demo articles and links to original reference resources.
 - Expert-support page and responsive navigation with keyboard/Escape behavior.
 

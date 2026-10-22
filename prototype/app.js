@@ -254,7 +254,19 @@ try {
       )
       .map((x) => ({ id: x.id, qty: x.qty, option: x.option.slice(0, 200) }));
 } catch {}
-let builder = { step: 1, use: "", hardware: "" };
+let builder = {
+  step: 1,
+  use: "",
+  hardware: "",
+  vehicle: "",
+  engine: "",
+  logger: "",
+  ecuStatus: "Not sure",
+  ecu: "",
+  existing: "",
+  sensors: [],
+  notes: "",
+};
 function saveCart() {
   try {
     localStorage.setItem("trailbrake-demo-cart", JSON.stringify(cart));
@@ -375,24 +387,159 @@ function cartPage() {
       : `<div class="empty-state" style="grid-column:1/-1"><span class="eyebrow">ROOM FOR YOUR NEXT IDEA</span><h2>Your cart is ready when you are.</h2><p>Explore the demo collection, or let your driving goals guide the way.</p><div class="buttons" style="justify-content:center"><a class="btn btn-red" href="#/shop">Explore products →</a><a class="btn btn-outline" href="#/builder">Build your system ↗</a></div></div>`
   }</section>`;
 }
+const sensorChoices = [
+  {
+    id: "oil",
+    name: "Oil pressure",
+    part: "Oil-pressure sensor",
+    check:
+      "Pressure range, thread, fluid suitability, supply and output signal",
+  },
+  {
+    id: "fuel",
+    name: "Fuel pressure",
+    part: "Fuel-pressure sensor",
+    check: "Fuel suitability, pressure range, thread, supply and output signal",
+  },
+  {
+    id: "coolant",
+    name: "Coolant temperature",
+    part: "Coolant-temperature sensor",
+    check:
+      "Thread, temperature range and resistance/calibration or signal type",
+  },
+  {
+    id: "cht",
+    name: "Cylinder-head temperature (CHT)",
+    part: "CHT probe",
+    check: "Engine mounting, probe type, input compatibility and lead length",
+  },
+  {
+    id: "egt",
+    name: "Exhaust temperature (EGT)",
+    part: "EGT probe",
+    check:
+      "Probe mounting, thermocouple type, temperature input and extension cable",
+  },
+  {
+    id: "brake",
+    name: "Brake pressure",
+    part: "Brake-pressure sensor",
+    check:
+      "Pressure range, plumbing, electrical interface and expert installation review",
+  },
+  {
+    id: "tires",
+    name: "Tire pressure / temperature",
+    part: "TPMS sensors and receiver",
+    check:
+      "Wheel count, sensor/receiver pairing and supported data-system protocol",
+  },
+  {
+    id: "position",
+    name: "Steering / suspension position",
+    part: "Position sensor(s)",
+    check:
+      "Measurement location, travel/angle, mounting, quantity and input channels",
+  },
+];
+function planRows() {
+  const existing = builder.hardware === "Keep my existing logger";
+  const foundation = products.find(
+    (p) =>
+      p.id ===
+      ({ Karting: "mychron", "Track days": "trackkit", "Club racing": "mxs" }[
+        builder.use
+      ] || "mxs"),
+  );
+  const rows = [
+    {
+      name: existing
+        ? `Existing logger: ${builder.logger || "model not provided"}`
+        : foundation.name,
+      qty: existing ? "Existing" : "1 candidate",
+      kind: existing ? "CUSTOMER-SUPPLIED" : "CATALOG CANDIDATE",
+      check: existing
+        ? "Verify exact model, revision, firmware, available ports and channel capacity."
+        : "Starting point only. Check exact package, channel capacity and suitability for the vehicle and selected measurements.",
+      product: existing ? null : foundation,
+    },
+  ];
+  rows.push({
+    name: existing
+      ? "Existing main harness / breakout"
+      : "Main harness / breakout assembly",
+    qty: existing ? "Inspect existing" : "TBD",
+    kind: "UNVERIFIED",
+    check:
+      "Confirm the logger connector, pin assignments, power/ground requirements and included kit contents. Reuse only after inspection; avoid duplicating an included harness.",
+  });
+  if (builder.ecuStatus !== "No ECU connection planned")
+    rows.push({
+      name: "ECU-to-logger interface cable / adapter",
+      qty: "TBD",
+      kind: "UNVERIFIED",
+      check: `${builder.ecuStatus === "ECU present" ? builder.ecu || "ECU model not provided" : "ECU details unknown"}: verify supported protocol, bus settings, connector and wiring. ECU data availability is not assumed.`,
+    });
+  for (const id of builder.sensors) {
+    const s = sensorChoices.find((s) => s.id === id);
+    if (!s) continue;
+    rows.push({
+      name: s.part,
+      qty: id === "tires" || id === "position" ? "TBD" : "1 planning allowance",
+      kind: "UNVERIFIED",
+      check:
+        s.check +
+        ". Check whether an existing sensor or verified ECU channel already supplies this measurement before buying.",
+    });
+    rows.push({
+      name:
+        id === "tires"
+          ? "TPMS receiver power / data cable"
+          : `${s.name} extension / patch cable`,
+      qty: "TBD",
+      kind: "UNVERIFIED",
+      check:
+        id === "tires"
+          ? "Confirm receiver connector, power, protocol and logger connection."
+          : "Confirm both connector ends, pinout, signal type, cable length and routing. CHT/EGT extensions must match the probe and input; do not substitute a generic 719 cable.",
+    });
+  }
+  rows.push({
+    name: "Expansion module / data hub, if required",
+    qty: "Conditional",
+    kind: "UNVERIFIED",
+    check:
+      "Only add if reviewed channel count, input types, bus capacity or available ports require it. Selected measurements alone do not establish that expansion is needed.",
+  });
+  return rows;
+}
+function builderField(key, label, placeholder) {
+  return `<label class="builder-field">${label}<input data-builder-field="${key}" maxlength="160" value="${esc(builder[key])}" placeholder="${placeholder}"></label>`;
+}
+function builderSummary() {
+  return `${builder.use} · ${builder.vehicle || "Vehicle details not provided"} · ${builder.engine || "Engine details not provided"}\nLogger plan: ${builder.hardware}; ${builder.logger || "model not provided"}\nECU: ${builder.ecuStatus}; ${builder.ecu || "model not provided"}\nExisting harness / sensors: ${builder.existing || "not provided"}\nDesired measurements: ${
+    builder.sensors
+      .map((id) => sensorChoices.find((s) => s.id === id)?.name)
+      .filter(Boolean)
+      .join(", ") || "None selected — expert guidance requested"
+  }\nInstallation notes: ${builder.notes || "not provided"}`;
+}
 function builderPage() {
   let content = "";
   if (builder.step === 1)
-    content = `<h2>Where will you use your system?</h2><p class="detail-subtitle">Start with the driving you do. We’ll narrow down a sensible starting point.</p><div class="builder-options">${["Karting", "Track days", "Club racing"].map((u, i) => `<button class="choice ${builder.use === u ? "selected" : ""}" data-use="${u}" aria-pressed="${builder.use === u}"><strong>${u}</strong><small>${["Lap data and temperature measurements for your kart.", "Lap timing and video to make sense of your sessions.", "A dash-centered system with room to plan your channels."][i]}</small></button>`).join("")}</div>`;
+    content = `<h2>Tell us about your car or kart.</h2><p class="detail-subtitle">Choose your driving, then add the vehicle and engine details you know. Unknown details remain visible in your draft.</p><div class="builder-options">${["Karting", "Track days", "Club racing"].map((u) => `<button class="choice ${builder.use === u ? "selected" : ""}" data-use="${u}" aria-pressed="${builder.use === u}"><strong>${u}</strong><small>${u === "Karting" ? "Kart-focused data planning." : "Plan data around your car and driving goals."}</small></button>`).join("")}</div><div class="builder-fields">${builderField("vehicle", "Car or kart — make, model, year / chassis", "e.g. 2018 Mazda MX-5 or kart chassis and year")}${builderField("engine", "Engine / class / modifications", "e.g. engine model, racing class, ECU changes")}</div>`;
   if (builder.step === 2)
-    content = `<h2>What are you starting with?</h2><p class="detail-subtitle">Existing hardware matters. This helps frame the questions for your expert.</p><div class="builder-options">${["Starting fresh", "An existing AiM system", "Another data system"].map((u) => `<button class="choice ${builder.hardware === u ? "selected" : ""}" data-hardware="${u}" aria-pressed="${builder.hardware === u}"><strong>${u}</strong><small>${u === "Starting fresh" ? "Plan the foundation and connections together." : "We’ll flag hardware details that need to be confirmed."}</small></button>`).join("")}</div>`;
-  if (builder.step === 3) {
-    const p = products.find(
-      (x) =>
-        x.id ===
-        ({ Karting: "mychron", "Track days": "trackkit", "Club racing": "mxs" }[
-          builder.use
-        ] || "mxs"),
-    );
-    content = `<h2>A starting point, with the right questions.</h2><p class="detail-subtitle">${esc(builder.use)} · ${esc(builder.hardware)}. Your plan is a discussion draft, not a verified complete system.</p><div class="builder-product">${image(p)}<div><span class="eyebrow">EXPLORE THIS FOUNDATION</span><h3>${p.name}</h3><strong>${p.id === "tpms" ? "From " : ""}${money(p.price)}</strong></div></div><ul class="builder-list"><li><span>Exact hardware model and revision</span><span class="status-pill">NEEDS REVIEW</span></li><li><span>${builder.use === "Karting" ? "Temperature inputs and sensor lead lengths" : "ECU connection, sensors and channels"}</span><span class="status-pill">NEEDS REVIEW</span></li><li><span>Harness, adapters and patch cables</span><span class="status-pill">NEEDS REVIEW</span></li></ul><div class="note">We won’t guess compatibility or silently add cables. Configure the foundation in the demo, then use the checklist to plan the remaining connections.</div><div class="buttons"><a class="btn btn-red" href="#/product/${p.id}">Explore & configure <span>→</span></a><button class="btn btn-outline" id="download-builder">Download planning checklist ↓</button></div>`;
+    content = `<h2>What hardware is already there?</h2><p class="detail-subtitle">Record exact model numbers where possible. We won’t treat an existing connection as verified compatibility.</p><div class="builder-options hardware-options">${["Starting fresh", "Keep my existing logger", "Not sure yet"].map((u) => `<button class="choice ${builder.hardware === u ? "selected" : ""}" data-hardware="${u}" aria-pressed="${builder.hardware === u}"><strong>${u}</strong><small>${u === "Keep my existing logger" ? "Plan around your hardware; do not suggest a replacement." : "Use the draft to identify what needs confirming."}</small></button>`).join("")}</div><div class="builder-fields">${builderField("logger", "Existing logger / dash and revision", "e.g. AiM MXS 1.3; firmware if known")}<label class="builder-field">ECU connection plan<select data-builder-field="ecuStatus">${["Not sure", "ECU present", "No ECU connection planned"].map((x) => `<option ${builder.ecuStatus === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>${builderField("ecu", "ECU make, model and firmware", "e.g. factory ECU or aftermarket model")}${builderField("existing", "Existing harnesses and sensors", "Part numbers, available ports, installed sensors")}</div>`;
+  if (builder.step === 3)
+    content = `<h2>What do you want to measure?</h2><p class="detail-subtitle">Choose your goals. Each adds a sensor requirement and its connection to the draft—not a verified SKU.</p><fieldset class="sensor-fieldset"><legend class="sr-only">Desired sensor measurements</legend><div class="sensor-grid">${sensorChoices.map((s) => `<label class="sensor-choice"><input type="checkbox" data-sensor="${s.id}" ${builder.sensors.includes(s.id) ? "checked" : ""}><span><strong>${s.name}</strong><small>${s.check}</small></span></label>`).join("")}</div></fieldset>${builderField("notes", "Installation notes / channels / cable lengths", "e.g. four wheels, two suspension channels, approximate cable runs")}<p class="results-count">You can continue with no sensors selected if you want help deciding.</p>`;
+  if (builder.step === 4) {
+    const rows = planRows();
+    content = `<h2>Your draft parts list.</h2><p class="detail-subtitle">A planning brief for an expert—not a fitment approval, wiring instruction or complete quote.</p><div class="plan-summary"><span class="eyebrow">YOUR INPUTS</span><p>${esc(builderSummary()).replace(/\n/g, "<br>")}</p><button class="text-link edit-plan" data-edit-step="1">Edit vehicle</button><button class="text-link edit-plan" data-edit-step="2">Edit hardware</button><button class="text-link edit-plan" data-edit-step="3">Edit sensors</button></div><div class="note"><strong>Compatibility is unverified for every line.</strong> No harness or cable SKU is selected until connectors, pinouts, signal types and lengths are reviewed. Quantities are planning allowances; sensor choices do not prove available channels.</div><div class="draft-parts">${rows.map((r) => `<article class="draft-part"><div class="draft-part-head"><h3>${esc(r.name)}</h3><span class="status-pill">UNVERIFIED</span></div><p class="part-meta">${esc(r.kind)} · Quantity: ${esc(r.qty)} · ${r.product ? "Catalog snapshot: " + money(r.product.price) + "; final configuration unpriced" : "Price: not quoted"}</p><p>${esc(r.check)}</p>${r.product ? `<a class="text-link" href="#/product/${r.product.id}">Explore candidate only ↗</a>` : ""}</article>`).join("")}</div><div class="note"><strong>System total: not quoted.</strong> Harnesses, cables, sensor variants, expansion and installation have not been priced. Nothing from this draft is automatically added to the cart.</div><div class="buttons"><button class="btn btn-red" id="download-builder">Download draft parts list ↓</button><a class="btn btn-outline" href="#/support">Request an expert review ↗</a></div>`;
   }
-  return `${bread("Build your system")}<section class="wrap page-heading"><span class="eyebrow">FROM A GOAL TO A PLAN</span><h1>Let’s connect the dots.</h1><p>Three simple steps to a more useful conversation about your data system.</p></section><section class="builder"><div class="progress" aria-label="Planner progress">${["Your driving", "Your starting point", "Your plan"].map((s, i) => `<div class="step ${builder.step === i + 1 ? "active" : ""}" ${builder.step === i + 1 ? 'aria-current="step"' : ""}>0${i + 1} / ${s}</div>`).join("")}</div>${content}<div class="builder-actions"><button class="btn btn-outline" id="builder-back">${builder.step === 1 ? "Back to shop" : "← Previous step"}</button>${builder.step < 3 ? `<button class="btn" id="builder-next" ${!(builder.step === 1 ? builder.use : builder.hardware) ? "disabled" : ""}>Next step →</button>` : '<a class="text-link" href="#/support">Get an expert review ↗</a>'}</div></section>`;
+  return `${bread("Build your system")}<section class="wrap page-heading"><span class="eyebrow">FROM A GOAL TO A PLAN</span><h1>Let’s connect the dots.</h1><p>Your vehicle, your hardware, your measurements—one draft to review together.</p></section><section class="builder"><div class="progress" aria-label="Planner progress">${["Vehicle", "Hardware", "Sensors", "Draft parts"].map((s, i) => `<div class="step ${builder.step === i + 1 ? "active" : ""}" ${builder.step === i + 1 ? 'aria-current="step"' : ""}>0${i + 1} / ${s}</div>`).join("")}</div>${content}<div class="builder-actions"><button class="btn btn-outline" id="builder-back">${builder.step === 1 ? "Back to shop" : "← Previous step"}</button>${builder.step < 4 ? `<button class="btn" id="builder-next" ${(builder.step === 1 && !builder.use) || (builder.step === 2 && !builder.hardware) ? "disabled" : ""}>${builder.step === 3 ? "Show draft parts list" : "Next step"} →</button>` : ""}</div></section>`;
 }
+
 function learn() {
   return `${bread("Learning center")}<section class="wrap page-heading"><span class="eyebrow">THE TRAILBRAKE LEARNING CENTER</span><h1>Understand more.<br>Get more from every lap.</h1><p>Start with practical questions. Build a better understanding of your equipment, your data and what to explore next.</p></section><section class="wrap section spacer-top"><div class="learning-grid">${articles.map(articleCard).join("")}</div><div class="callout"><strong>Prototype editorial collection</strong>These are introductory planning guides. For original TrailBrake articles and model-specific videos, visit the linked source resources.</div></section><section class="wrap section spacer-top">${banner()}</section>`;
 }
@@ -558,11 +705,38 @@ function bindPage() {
         render();
       }
     };
+  document.querySelectorAll("[data-builder-field]").forEach((input) => {
+    input.oninput = () => {
+      builder[input.dataset.builderField] = input.value.slice(0, 160);
+    };
+  });
+  document.querySelectorAll("[data-sensor]").forEach((input) => {
+    input.onchange = () => {
+      builder.sensors = input.checked
+        ? [...new Set([...builder.sensors, input.dataset.sensor])]
+        : builder.sensors.filter((id) => id !== input.dataset.sensor);
+    };
+  });
+  document.querySelectorAll("[data-edit-step]").forEach((button) => {
+    button.onclick = () => {
+      builder.step = Number(button.dataset.editStep);
+      render();
+    };
+  });
   if ($("#download-builder"))
     $("#download-builder").onclick = () =>
       download(
-        "trailbrake-system-checklist.txt",
-        `TRAILBRAKE — SYSTEM PLANNING CHECKLIST\nPrototype only. Not a verified system or quote.\n\nUse: ${builder.use}\nStarting point: ${builder.hardware}\n\nConfirm with an expert:\n- Exact logger/dash model and revision\n- Vehicle/ECU details where relevant\n- Required channels and sensor part numbers\n- Connector, voltage, signal and protocol compatibility\n- Harness, adapters, cable lengths and included items\n- Final pricing and availability\n\nTrailBrake: 603-232-9096`,
+        "trailbrake-draft-parts-list.txt",
+        "TRAILBRAKE — DRAFT PARTS LIST\nAll compatibility UNVERIFIED. Not an order, wiring instruction or complete quote.\n\n" +
+          builderSummary() +
+          "\n\n" +
+          planRows()
+            .map(
+              (r, i) =>
+                `${i + 1}. ${r.name}\nStatus: UNVERIFIED | ${r.kind}\nQuantity: ${r.qty}\n${r.product ? "Catalog snapshot: " + money(r.product.price) + "; final configuration unpriced" : "Price: not quoted"}\nReview: ${r.check}`,
+            )
+            .join("\n\n") +
+          "\n\nSYSTEM TOTAL: NOT QUOTED. Nothing has been added to the cart.\nTrailBrake: 603-232-9096",
       );
 }
 $(".search").onsubmit = (e) => {
